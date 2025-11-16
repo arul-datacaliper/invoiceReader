@@ -49,6 +49,8 @@ firebase-key.json
 google-services.json
 GoogleService-Info.plist
 azure-function/local.settings.json
+azure-function/bin/
+azure-function/obj/
 
 # Environment files
 .env

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "777103653371",
+    "project_id": "invoicereader-70363",
+    "storage_bucket": "invoicereader-70363.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:777103653371:android:0aa75420d50b352051b35e",
+        "android_client_info": {
+          "package_name": "com.icecreamparlour.invoicereport.invoicereport"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAY7wiP3rykFf_suFP7Y6PBnnog05_urB0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

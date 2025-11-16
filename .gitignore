@@ -43,3 +43,24 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase & Azure sensitive files
+firebase-key.json
+google-services.json
+GoogleService-Info.plist
+azure-function/local.settings.json
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Service account keys
+**/service-account-*.json
+**/*-service-account.json
+**/firebase-adminsdk-*.json
+
+# API keys and secrets
+**/*-key.json
+**/secrets.json

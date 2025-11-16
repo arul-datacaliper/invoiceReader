@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/invoice_provider.dart';
 import '../invoice/invoice_scanner_screen.dart';
 import '../invoice/invoice_list_screen.dart';
+import '../inventory/inventory_screen.dart';
 import '../reports/reports_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = [
     const InvoiceListScreen(),
     const InvoiceScannerScreen(),
+    const InventoryScreen(),
     const ReportsScreen(),
   ];
 
@@ -79,6 +80,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.camera_alt),
             label: 'Scan',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory),
+            label: 'Inventory',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.analytics),

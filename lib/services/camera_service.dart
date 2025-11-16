@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -43,48 +44,63 @@ class CameraService {
   }
 
   // Crop image
-  Future<File?> cropImage(File imageFile) async {
+  Future<File?> cropImage(File imageFile, {BuildContext? context}) async {
     try {
+      final List<PlatformUiSettings> uiSettings = [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Invoice',
+          toolbarColor: Colors.blue,
+          toolbarWidgetColor: Colors.white,
+          statusBarColor: Colors.blue,
+          backgroundColor: Colors.black,
+          activeControlsWidgetColor: Colors.blue,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: false,
+          aspectRatioPresets: [
+            CropAspectRatioPreset.original,
+            CropAspectRatioPreset.square,
+            CropAspectRatioPreset.ratio3x2,
+            CropAspectRatioPreset.ratio4x3,
+            CropAspectRatioPreset.ratio16x9
+          ],
+          cropStyle: CropStyle.rectangle,
+          showCropGrid: true,
+          hideBottomControls: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Invoice',
+          minimumAspectRatio: 1.0,
+          aspectRatioLockEnabled: false,
+          resetAspectRatioEnabled: true,
+          aspectRatioPresets: [
+            CropAspectRatioPreset.original,
+            CropAspectRatioPreset.square,
+            CropAspectRatioPreset.ratio3x2,
+            CropAspectRatioPreset.ratio4x3,
+            CropAspectRatioPreset.ratio16x9
+          ],
+          cropStyle: CropStyle.rectangle,
+        ),
+      ];
+
+      // Add web settings if running on web platform and context is available
+      if (kIsWeb && context != null) {
+        uiSettings.add(
+          WebUiSettings(
+            context: context,
+            size: const CropperSize(
+              width: 800,
+              height: 600,
+            ),
+          ),
+        );
+      }
+
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: imageFile.path,
         compressFormat: ImageCompressFormat.jpg,
         compressQuality: 90,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Crop Invoice',
-            toolbarColor: Colors.blue,
-            toolbarWidgetColor: Colors.white,
-            statusBarColor: Colors.blue,
-            backgroundColor: Colors.black,
-            activeControlsWidgetColor: Colors.blue,
-            initAspectRatio: CropAspectRatioPreset.original,
-            lockAspectRatio: false,
-            aspectRatioPresets: [
-              CropAspectRatioPreset.original,
-              CropAspectRatioPreset.square,
-              CropAspectRatioPreset.ratio3x2,
-              CropAspectRatioPreset.ratio4x3,
-              CropAspectRatioPreset.ratio16x9
-            ],
-            cropStyle: CropStyle.rectangle,
-            showCropGrid: true,
-            hideBottomControls: false,
-          ),
-          IOSUiSettings(
-            title: 'Crop Invoice',
-            minimumAspectRatio: 1.0,
-            aspectRatioLockEnabled: false,
-            resetAspectRatioEnabled: true,
-            aspectRatioPresets: [
-              CropAspectRatioPreset.original,
-              CropAspectRatioPreset.square,
-              CropAspectRatioPreset.ratio3x2,
-              CropAspectRatioPreset.ratio4x3,
-              CropAspectRatioPreset.ratio16x9
-            ],
-            cropStyle: CropStyle.rectangle,
-          ),
-        ],
+        uiSettings: uiSettings,
       );
 
       if (croppedFile != null) {

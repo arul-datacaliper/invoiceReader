@@ -101,3 +101,4 @@
 /Users/arul/Documents/flutter app/invoicereport/azure-function/obj/release/net8.0/InvoiceProcessor.pdb
 /Users/arul/Documents/flutter app/invoicereport/azure-function/obj/release/net8.0/InvoiceProcessor.genruntimeconfig.cache
 /Users/arul/Documents/flutter app/invoicereport/azure-function/obj/release/net8.0/ref/InvoiceProcessor.dll
+/Users/arul/Documents/flutter app/invoicereport/azure-function/obj/release/net8.0/InvoiceProcessor.sourcelink.json

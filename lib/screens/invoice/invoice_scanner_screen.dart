@@ -25,7 +25,7 @@ class _InvoiceScannerScreenState extends State<InvoiceScannerScreen> {
       
       if (image != null) {
         print('🔵 [ScannerScreen] Starting image cropping...');
-        final croppedImage = await _cameraService.cropImage(image);
+        final croppedImage = await _cameraService.cropImage(image, context: context);
         print('🔵 [ScannerScreen] Image cropped: ${croppedImage?.path}');
         
         if (croppedImage != null) {
@@ -54,7 +54,7 @@ class _InvoiceScannerScreenState extends State<InvoiceScannerScreen> {
       
       if (image != null) {
         print('🔵 [ScannerScreen] Starting image cropping...');
-        final croppedImage = await _cameraService.cropImage(image);
+        final croppedImage = await _cameraService.cropImage(image, context: context);
         print('🔵 [ScannerScreen] Image cropped: ${croppedImage?.path}');
         
         if (croppedImage != null) {

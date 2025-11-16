@@ -304,6 +304,13 @@ namespace InvoiceProcessor
 
                                     await invoiceRef.UpdateAsync(updateData);
                                     _logger.LogInformation("Invoice updated with extracted data");
+
+                                    // Save inventory items to separate collection
+                                    if (extractedData.items != null && extractedData.items.Count > 0)
+                                    {
+                                        await SaveInventoryItems(request.TenantId, request.InvoiceId, extractedData.items);
+                                        _logger.LogInformation($"Saved {extractedData.items.Count} inventory items");
+                                    }
                                 }
                                 catch (Exception ex)
                                 {
@@ -368,6 +375,154 @@ namespace InvoiceProcessor
             }
         }
 
+        private async Task SaveInventoryItems(string tenantId, string invoiceId, List<object> items)
+        {
+            if (_firestoreDb == null || items == null || items.Count == 0) return;
+
+            try
+            {
+                _logger.LogInformation($"Processing {items.Count} inventory items for invoice {invoiceId}");
+                
+                var inventoryCollection = _firestoreDb.Collection("tenants")
+                    .Document(tenantId)
+                    .Collection("inventory");
+
+                var now = DateTime.UtcNow;
+
+                foreach (var item in items)
+                {
+                    var itemData = new Dictionary<string, object>
+                    {
+                        ["tenantId"] = tenantId,
+                        ["updatedAt"] = now
+                    };
+
+                    // Add item properties using reflection
+                    var itemType = item.GetType();
+                    string? itemName = null;
+                    string? itemCode = null;
+                    double quantity = 0;
+                    double? unitPrice = null;
+                    double? totalPrice = null;
+
+                    foreach (var prop in itemType.GetProperties())
+                    {
+                        var value = prop.GetValue(item);
+                        if (value != null)
+                        {
+                            itemData[prop.Name] = value;
+                            
+                            // Extract key values for duplicate checking
+                            if (prop.Name.Equals("description", StringComparison.OrdinalIgnoreCase))
+                                itemName = value.ToString();
+                            else if (prop.Name.Equals("itemCode", StringComparison.OrdinalIgnoreCase))
+                                itemCode = value.ToString();
+                            else if (prop.Name.Equals("quantity", StringComparison.OrdinalIgnoreCase))
+                                quantity = Convert.ToDouble(value);
+                            else if (prop.Name.Equals("unitPrice", StringComparison.OrdinalIgnoreCase))
+                                unitPrice = Convert.ToDouble(value);
+                            else if (prop.Name.Equals("totalPrice", StringComparison.OrdinalIgnoreCase))
+                                totalPrice = Convert.ToDouble(value);
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(itemName))
+                    {
+                        _logger.LogWarning("Skipping item with empty name");
+                        continue;
+                    }
+
+                    // Check for existing item by name or code
+                    Query query = inventoryCollection.WhereEqualTo("itemName", itemName);
+                    if (!string.IsNullOrEmpty(itemCode))
+                    {
+                        query = inventoryCollection.WhereEqualTo("itemCode", itemCode);
+                    }
+
+                    var existingItemsSnapshot = await query.GetSnapshotAsync();
+                    
+                    if (existingItemsSnapshot.Documents.Count > 0)
+                    {
+                        // Update existing item - aggregate quantities and update prices
+                        var existingDoc = existingItemsSnapshot.Documents[0];
+                        var existingData = existingDoc.ToDictionary();
+                        
+                        var currentQuantity = Convert.ToDouble(existingData.GetValueOrDefault("quantity", 0));
+                        var currentPieces = Convert.ToInt32(existingData.GetValueOrDefault("piecesCount", 0));
+                        var newPieces = Convert.ToInt32(quantity);
+                        
+                        var updateData = new Dictionary<string, object>
+                        {
+                            ["quantity"] = currentQuantity + quantity,
+                            ["piecesCount"] = currentPieces + newPieces,
+                            ["updatedAt"] = now,
+                            ["lastInvoiceId"] = invoiceId // Track which invoice last updated this
+                        };
+
+                        // Update prices if provided (keep most recent)
+                        if (unitPrice.HasValue)
+                            updateData["rate"] = unitPrice.Value;
+                        if (totalPrice.HasValue)
+                            updateData["mrp"] = unitPrice ?? totalPrice.Value; // Use unit price as MRP if available
+
+                        // Add to invoice history for tracking
+                        var invoiceHistory = existingData.GetValueOrDefault("invoiceHistory", new List<object>()) as List<object> ?? new List<object>();
+                        invoiceHistory.Add(new Dictionary<string, object>
+                        {
+                            ["invoiceId"] = invoiceId,
+                            ["quantity"] = quantity,
+                            ["unitPrice"] = unitPrice ?? 0,
+                            ["addedAt"] = now
+                        });
+                        updateData["invoiceHistory"] = invoiceHistory;
+
+                        await existingDoc.Reference.UpdateAsync(updateData);
+                        _logger.LogInformation($"Updated existing inventory item: {itemName} (added {quantity} units)");
+                    }
+                    else
+                    {
+                        // Create new inventory item
+                        var inventoryRef = inventoryCollection.Document(); // Auto-generated ID
+                        
+                        itemData["id"] = inventoryRef.Id;
+                        itemData["itemName"] = itemName;
+                        if (!string.IsNullOrEmpty(itemCode))
+                            itemData["itemCode"] = itemCode;
+                        itemData["piecesCount"] = Convert.ToInt32(quantity);
+                        if (unitPrice.HasValue)
+                            itemData["rate"] = unitPrice.Value;
+                        if (unitPrice.HasValue)
+                            itemData["mrp"] = unitPrice.Value;
+                        else if (totalPrice.HasValue)
+                            itemData["mrp"] = totalPrice.Value;
+                        itemData["invoiceId"] = invoiceId; // First invoice that created this item
+                        itemData["createdAt"] = now;
+                        
+                        // Initialize invoice history
+                        itemData["invoiceHistory"] = new List<object>
+                        {
+                            new Dictionary<string, object>
+                            {
+                                ["invoiceId"] = invoiceId,
+                                ["quantity"] = quantity,
+                                ["unitPrice"] = unitPrice ?? 0,
+                                ["addedAt"] = now
+                            }
+                        };
+
+                        await inventoryRef.SetAsync(itemData);
+                        _logger.LogInformation($"Created new inventory item: {itemName} (quantity: {quantity})");
+                    }
+                }
+
+                _logger.LogInformation("Successfully processed inventory items to Firestore");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save inventory items to Firestore");
+            }
+        }
+
         private async Task UpdateInvoiceStatus(string tenantId, string invoiceId, string status, string? errorMessage = null)
         {
             if (_firestoreDb == null) return;
@@ -428,12 +583,26 @@ namespace InvoiceProcessor
                     if (item.FieldType == DocumentFieldType.Dictionary)
                     {
                         var itemDict = item.Value.AsDictionary();
+                        var description = GetFieldValue(itemDict, "Description") ?? "";
+                        var quantity = ParseDouble(GetFieldValue(itemDict, "Quantity")) ?? 1;
+                        var unitPrice = ParseDouble(GetFieldValue(itemDict, "UnitPrice")) ?? 0;
+                        var totalPrice = ParseDouble(GetFieldValue(itemDict, "Amount")) ?? 0;
+                        
+                        // Enhanced item extraction for inventory tracking
                         items.Add(new
                         {
-                            description = GetFieldValue(itemDict, "Description"),
-                            quantity = ParseDouble(GetFieldValue(itemDict, "Quantity")),
-                            unitPrice = ParseDouble(GetFieldValue(itemDict, "UnitPrice")),
-                            totalPrice = ParseDouble(GetFieldValue(itemDict, "Amount"))
+                            description = description,
+                            quantity = quantity,
+                            unitPrice = unitPrice,
+                            totalPrice = totalPrice,
+                            // Additional fields for inventory
+                            itemName = ExtractItemName(description),
+                            itemCode = ExtractItemCode(description),
+                            piecesCount = ExtractPiecesCount(description, quantity),
+                            unit = ExtractUnit(description),
+                            mrp = ExtractMRP(description, unitPrice),
+                            rate = unitPrice,
+                            discountAmount = CalculateDiscount(description, unitPrice, totalPrice),
                         });
                     }
                 }
@@ -606,6 +775,119 @@ namespace InvoiceProcessor
                 {
                     return "Snowy Milk Parlour";
                 }
+            }
+            
+            return null;
+        }
+
+        private static string ExtractItemName(string description)
+        {
+            if (string.IsNullOrEmpty(description)) return "Unknown Item";
+            
+            // Remove common patterns and clean up the name
+            var itemName = description.Trim();
+            
+            // Remove quantity patterns like "(48 Nos)", "[12 PCS]", etc.
+            itemName = System.Text.RegularExpressions.Regex.Replace(itemName, @"\([0-9]+\s*(nos?|pcs?|pieces?|ml|gm|kg)\)", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            itemName = System.Text.RegularExpressions.Regex.Replace(itemName, @"\[[0-9]+\s*(nos?|pcs?|pieces?|ml|gm|kg)\]", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            
+            // Remove extra spaces
+            itemName = System.Text.RegularExpressions.Regex.Replace(itemName, @"\s+", " ").Trim();
+            
+            return itemName;
+        }
+
+        private static string? ExtractItemCode(string description)
+        {
+            if (string.IsNullOrEmpty(description)) return null;
+            
+            // Look for alphanumeric codes (e.g., "AMUL001", "ICE123", "CREAM456")
+            var match = System.Text.RegularExpressions.Regex.Match(description.ToUpper(), @"\b[A-Z]{2,}[0-9]{1,}\b");
+            if (match.Success)
+            {
+                return match.Value;
+            }
+            
+            // Look for numeric codes at the beginning or end
+            match = System.Text.RegularExpressions.Regex.Match(description, @"\b[0-9]{3,}\b");
+            if (match.Success)
+            {
+                return match.Value;
+            }
+            
+            return null;
+        }
+
+        private static int ExtractPiecesCount(string description, double quantity)
+        {
+            if (string.IsNullOrEmpty(description)) 
+                return (int)Math.Max(1, quantity);
+            
+            // Look for patterns like "(48 Nos)", "(12 PCS)", "[24 Pieces]"
+            var match = System.Text.RegularExpressions.Regex.Match(description, @"[\(\[](\d+)\s*(?:nos?|pcs?|pieces?)[\)\]]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var pieces))
+            {
+                return pieces;
+            }
+            
+            // If no specific pieces found, use quantity as pieces count
+            return (int)Math.Max(1, quantity);
+        }
+
+        private static string ExtractUnit(string description)
+        {
+            if (string.IsNullOrEmpty(description)) return "PCS";
+            
+            var upperDesc = description.ToUpper();
+            
+            // Common units in ice cream/dairy business
+            if (upperDesc.Contains("ML")) return "ML";
+            if (upperDesc.Contains("LTR") || upperDesc.Contains("LITER")) return "LTR";
+            if (upperDesc.Contains("KG") || upperDesc.Contains("KILOGRAM")) return "KG";
+            if (upperDesc.Contains("GM") || upperDesc.Contains("GRAM")) return "GM";
+            if (upperDesc.Contains("PCS") || upperDesc.Contains("PIECE")) return "PCS";
+            if (upperDesc.Contains("BOX") || upperDesc.Contains("CARTON")) return "BOX";
+            
+            return "PCS"; // Default unit
+        }
+
+        private static double? ExtractMRP(string description, double unitPrice)
+        {
+            if (string.IsNullOrEmpty(description)) return null;
+            
+            // Look for MRP patterns like "MRP: 25", "MRP 25", "₹25 MRP"
+            var mrpMatch = System.Text.RegularExpressions.Regex.Match(description, @"(?:mrp|M\.R\.P\.?)\s*:?\s*₹?(\d+(?:\.\d{2})?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (mrpMatch.Success && double.TryParse(mrpMatch.Groups[1].Value, out var mrp))
+            {
+                return mrp;
+            }
+            
+            // If no MRP found, estimate it as 15-25% higher than unit price (common margin)
+            if (unitPrice > 0)
+            {
+                return Math.Round(unitPrice * 1.2, 2); // 20% markup as estimate
+            }
+            
+            return null;
+        }
+
+        private static double? CalculateDiscount(string description, double unitPrice, double totalPrice)
+        {
+            if (unitPrice <= 0 || totalPrice <= 0) return null;
+            
+            // Look for discount patterns in description
+            var discountMatch = System.Text.RegularExpressions.Regex.Match(description, @"(?:discount|disc\.?)\s*:?\s*₹?(\d+(?:\.\d{2})?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (discountMatch.Success && double.TryParse(discountMatch.Groups[1].Value, out var discount))
+            {
+                return discount;
+            }
+            
+            // Calculate discount if total is less than expected (unit price * quantity would be higher)
+            // This is a rough estimation
+            var expectedTotal = unitPrice;
+            if (expectedTotal > totalPrice)
+            {
+                return Math.Round(expectedTotal - totalPrice, 2);
             }
             
             return null;

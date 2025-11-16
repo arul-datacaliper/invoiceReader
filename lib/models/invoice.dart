@@ -9,6 +9,7 @@ class Invoice {
   final InvoiceData? extractedData;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool? isPaid;
 
   Invoice({
     required this.id,
@@ -19,6 +20,7 @@ class Invoice {
     this.extractedData,
     required this.createdAt,
     required this.updatedAt,
+    this.isPaid,
   });
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
@@ -36,6 +38,7 @@ class Invoice {
           : null,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
+      isPaid: json['isPaid'],
     );
   }
 
@@ -49,6 +52,7 @@ class Invoice {
       'extractedData': extractedData?.toJson(),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'isPaid': isPaid,
     };
   }
 

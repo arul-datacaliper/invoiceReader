@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../dashboard/dashboard_screen.dart';
 import '../invoice/invoice_scanner_screen.dart';
-import '../invoice/invoice_list_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../reports/reports_screen.dart';
 
@@ -17,7 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    const InvoiceListScreen(),
+    const DashboardScreen(),
     const InvoiceScannerScreen(),
     const InventoryScreen(),
     const ReportsScreen(),
@@ -74,8 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.list),
-            label: 'Invoices',
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.camera_alt),

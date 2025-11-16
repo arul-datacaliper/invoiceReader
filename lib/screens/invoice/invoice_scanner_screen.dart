@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/invoice_provider.dart';
 import '../../services/camera_service.dart';
+import 'manual_invoice_screen.dart';
 
 class InvoiceScannerScreen extends StatefulWidget {
   const InvoiceScannerScreen({super.key});
@@ -181,15 +182,107 @@ class _InvoiceScannerScreenState extends State<InvoiceScannerScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Scan Invoice',
+                        'Add Invoice',
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Take a photo or select an image of your invoice to extract data automatically.',
+                        'Scan an invoice or create one manually.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Manual Entry Option
+              Card(
+                child: InkWell(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const ManualInvoiceScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.edit_note,
+                          size: 40,
+                          color: Colors.green,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Create Manual Invoice',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add agency name, items, quantities, and amounts manually',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Divider
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'OR',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Scan Invoice Section
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.document_scanner,
+                        size: 40,
+                        color: Colors.blue,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Scan Invoice',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Take a photo or select an image to extract data automatically.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.grey[600],
                             ),
                         textAlign: TextAlign.center,

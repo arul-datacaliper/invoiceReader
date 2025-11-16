@@ -180,6 +180,44 @@ class InvoiceProvider with ChangeNotifier {
     }
   }
 
+  // Create manual invoice
+  Future<bool> createManualInvoice({
+    required Invoice invoice,
+    required String tenantId,
+  }) async {
+    try {
+      print('🔵 [InvoiceProvider] Creating manual invoice...');
+      print('🔵 [InvoiceProvider] TenantId: $tenantId');
+      
+      _setLoading(true);
+      _clearError();
+
+      // Generate invoice ID
+      final invoiceId = DateTime.now().millisecondsSinceEpoch.toString();
+      print('🔵 [InvoiceProvider] Generated invoiceId: $invoiceId');
+
+      // Create the invoice with the generated ID
+      final invoiceWithId = invoice.copyWith(
+        id: invoiceId,
+        tenantId: tenantId,
+      );
+
+      // Save to Firestore
+      print('🔵 [InvoiceProvider] Saving manual invoice to Firestore...');
+      await _firestoreService.createInvoice(invoiceWithId);
+      print('🟢 [InvoiceProvider] Manual invoice saved successfully');
+
+      return true;
+    } catch (e, stackTrace) {
+      print('🔴 [InvoiceProvider] Manual invoice creation failed: $e');
+      print('🔴 [InvoiceProvider] Stack trace: $stackTrace');
+      _setError('Failed to create invoice: ${e.toString()}');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
